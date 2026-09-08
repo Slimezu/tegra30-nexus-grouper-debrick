@@ -1,27 +1,46 @@
 name: Build U-Boot
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi make bison flex libssl-dev python3 bc swig libgnutls28-dev uuid-dev libncurses-dev python3-setuptools python3-pkg-resources
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          git \
+          bc \
+          libssl-dev \
+          swig \
+          python3-dev \
+          python3-pip \
+          libncurses-dev \
+          flex \
+          bison
 
-      - name: Build U-Boot for Grouper
-        run: |
-          make ARCH=arm CROSS_COMPILE=arm-none-eabi- grouper_defconfig
-          export PYTHONPATH="${GITHUB_WORKSPACE}/tools:${GITHUB_WORKSPACE}/tools/dtoc:${GITHUB_WORKSPACE}/tools/binman"
-          make ARCH=arm CROSS_COMPILE=arm-none-eabi- NO_PYTHON=1 -j$(nproc)
+    - name: Purge conflicting libfdt packages
+      run: |
+        # This prevents binman from crashing with the QUIET_NOTFOUND error
+        pip uninstall -y libfdt || true
+        sudo apt-get remove -y python3-libfdt || true
 
-      - name: Upload Binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: u-boot-dtb-tegra
-          path: u-boot-dtb-tegra.bin
+    - name: Configure and Build U-Boot
+      run: |
+        # Clean previous artifacts
+        make mrproper
+        
+        # Load your board config (change grouper_defconfig if your target is different)
+        make grouper_defconfig
+        
+        # Compile using all available runner cores
+        make -j$(nproc)
