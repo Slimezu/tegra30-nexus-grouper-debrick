@@ -12,11 +12,12 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi make bison flex libssl-dev python3 bc swig libgnutls28-dev uuid-dev libncurses-dev
+          sudo apt-get install -y gcc-arm-none-eabi make bison flex libssl-dev python3 bc swig libgnutls28-dev uuid-dev libncurses-dev python3-setuptools python3-pkg-resources
 
       - name: Build U-Boot for Grouper
         run: |
           make ARCH=arm CROSS_COMPILE=arm-none-eabi- grouper_defconfig
+          export PYTHONPATH="${GITHUB_WORKSPACE}/tools:${GITHUB_WORKSPACE}/tools/dtoc:${GITHUB_WORKSPACE}/tools/binman"
           make ARCH=arm CROSS_COMPILE=arm-none-eabi- NO_PYTHON=1 -j$(nproc)
 
       - name: Upload Binary
