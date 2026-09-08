@@ -1,4 +1,4 @@
-name: Build U-Boot
+name: Build U-Boot for Grouper
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install build dependencies
+    - name: Install build dependencies & ARM toolchain
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -26,21 +26,31 @@ jobs:
           python3-pip \
           libncurses-dev \
           flex \
-          bison
+          bison \
+          gcc-arm-none-eabi
 
     - name: Purge conflicting libfdt packages
       run: |
-        # This prevents binman from crashing with the QUIET_NOTFOUND error
+        # Prevents binman from crashing on QUIET_NOTFOUND
         pip uninstall -y libfdt || true
         sudo apt-get remove -y python3-libfdt || true
 
     - name: Configure and Build U-Boot
       run: |
-        # Clean previous artifacts
+        # Clean up any leftover artifacts
         make mrproper
         
-        # Load your board config (change grouper_defconfig if your target is different)
-        make grouper_defconfig
+        # Configure for Grouper using the ARM cross-compiler
+        make ARCH=arm CROSS_COMPILE=arm-none-eabi- grouper_defconfig
         
-        # Compile using all available runner cores
-        make -j$(nproc)
+        # Build the actual binary using all runner cores
+        make ARCH=arm CROSS_COMPILE=arm-none-eabi- -j$(nproc)
+
+    - name: Upload U-Boot Binary Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: u-boot-dtb-tegra
+        path: |
+          u-boot-dtb-tegra.bin
+          u-boot.bin
+          spl/u-boot-spl.bin
